@@ -42,7 +42,6 @@ class AccountsLoader[F[_] : Sync : Functor : Executor](elasticClient: ElasticCli
 
   def parseLines(lines: Vector[String]): Vector[ValidatedNel[circe.Error, Map[String, String]]] = {
     lines.zipWithIndex.collect { case (line, index) if index % 2 == 1 =>
-//      println(line)
       Account.fieldDecoder(line)
     }
   }
