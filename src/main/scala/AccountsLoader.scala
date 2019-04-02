@@ -1,6 +1,8 @@
+import cats.data.Validated.Valid
 import cats.data.{NonEmptyList, Validated, ValidatedNel}
 import cats.effect.{IO, Resource, Sync}
 import cats.instances.vector._
+import cats.instances.list._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.syntax.traverse._
@@ -13,6 +15,7 @@ import com.sksamuel.elastic4s.indexes.IndexRequest
 import contract.Account
 import io.circe
 
+import scala.collection.immutable
 import scala.concurrent.{Future, Promise}
 import scala.io.{BufferedSource, Source}
 
@@ -26,8 +29,8 @@ class AccountsLoader[F[_] : Sync : Functor : Executor](elasticClient: ElasticCli
       sourceLines.map((lines: Vector[String]) => parseLines(lines))
 
     val successfulAccounts: F[Response[BulkResponse]] =
-      ioAccounts.flatMap((accounts: Vector[ValidatedNel[circe.Error, Map[String, String]]]) =>
-          executeClientValidated(accounts, indexName, esType)
+      ioAccounts.flatMap ((accounts: Vector[ValidatedNel[circe.Error, Map[String, String]]]) =>
+        executeClientValidated(accounts, indexName, esType)
       )
 
     successfulAccounts
@@ -39,6 +42,7 @@ class AccountsLoader[F[_] : Sync : Functor : Executor](elasticClient: ElasticCli
 
   def parseLines(lines: Vector[String]): Vector[ValidatedNel[circe.Error, Map[String, String]]] = {
     lines.zipWithIndex.collect { case (line, index) if index % 2 == 1 =>
+//      println(line)
       Account.fieldDecoder(line)
     }
   }
@@ -56,16 +60,16 @@ class AccountsLoader[F[_] : Sync : Functor : Executor](elasticClient: ElasticCli
     }
   }
 
-  // Maybe it's best to return the Validated result
+  // Maybe it's best to work on the Validated result
   def executeClientValidated(
                               accounts: Vector[ValidatedNel[circe.Error, Map[String, String]]],
                               indexName: String,
                               esType: String
                             ): F[Response[BulkResponse]] = {
-    // Think about this...
-    val requests: Vector[Vector[IndexRequest]] = accounts.traverse[Vector, IndexRequest] { nel: ValidatedNel[circe.Error, Map[String, String]] =>
+    // Think about this... should it actually return F[ValidatedNel[circe.Error, Response[BulkResponse]]]
+    val requests: immutable.Seq[Vector[IndexRequest]] = accounts.traverse[List, IndexRequest] { nel: ValidatedNel[circe.Error, Map[String, String]] =>
       val formRequests: Validated[NonEmptyList[circe.Error], IndexRequest] = nel.map(fieldsMap => indexInto(indexName, esType) fields fieldsMap)
-      formRequests.toList.toVector // Sadness
+      formRequests.toList // Sadness... removes the richness of Validated typeclass
     }
 
     elasticClient.execute[BulkRequest, BulkResponse, F] {
@@ -112,8 +116,8 @@ object TestApp extends App {
   println(bulkResponseIo.unsafeRunSync())
 
 
-// smaller test
-//  val responseIo: IO[Response[BulkResponse]] = loader.executeClient(Vector(), "exampleIndex", "_doc")
-//  val result: Response[BulkResponse] = responseIo.unsafeRunSync()
-//  println(result)
+ //smaller test so we know client execution works
+  val responseIo: IO[Response[BulkResponse]] = loader.executeClientValidated(Vector(Valid(Map("hello" -> "world"))), "exampleindex", "_doc")
+  val result: Response[BulkResponse] = responseIo.unsafeRunSync()
+  println(result)
 }
