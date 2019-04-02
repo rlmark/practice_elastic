@@ -25,7 +25,7 @@ class AccountsLoader[F[_] : Sync : Functor : Executor](elasticClient: ElasticCli
     val ioAccounts: F[Vector[ValidatedNel[circe.Error, Map[String, String]]]] =
       sourceLines.map((lines: Vector[String]) => parseLines(lines))
 
-    val successfulAccounts: F[Response[BulkResponse]] = // I feel like the answer is traverse, the answer is always traverse
+    val successfulAccounts: F[Response[BulkResponse]] =
       ioAccounts.flatMap((accounts: Vector[ValidatedNel[circe.Error, Map[String, String]]]) =>
           executeClientValidated(accounts, indexName, esType)
       )
@@ -76,7 +76,7 @@ class AccountsLoader[F[_] : Sync : Functor : Executor](elasticClient: ElasticCli
   }
 }
 
-// Elastic4S defines it's own Funtor and Executor instances, so we need to create instances for cats effect IO
+// Elastic4S defines it's own Functor and Executor instances, so we need to create instances for cats effect IO
 object Elastic4STranslation {
 
   implicit val esFunctor: Functor[IO] = new Functor[IO] {
