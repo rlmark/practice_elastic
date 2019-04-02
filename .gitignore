@@ -1,0 +1,23 @@
+*.class
+*.log
+*.iml
+# sbt specific
+.cache
+.history
+.lib/
+dist/*
+target/
+lib_managed/
+src_managed/
+project/boot/
+project/plugins/project/
+
+# Scala-IDE specific
+.scala_dependencies
+.worksheet
+.ensime
+.ensime_cache
+
+# IntelliJ specific
+.idea
+scala_days_credentials.json
